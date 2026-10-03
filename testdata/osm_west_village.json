@@ -1,0 +1,26 @@
+{
+  "version": 0.6,
+  "generator": "hand-written fixture in Overpass 'out center tags' format; names are fictional",
+  "elements": [
+    {"type": "node", "id": 1001, "lat": 40.7334, "lon": -74.0030,
+     "tags": {"amenity": "bar", "name": "Grove Street Tap", "addr:housenumber": "75", "addr:street": "Grove Street",
+              "addr:postcode": "10014", "website": "https://grovestreettap.example", "phone": "+1 212 555 0101"}},
+    {"type": "node", "id": 1002, "lat": 40.7320, "lon": -74.0050,
+     "tags": {"amenity": "pub", "name": "The Bedford Arms", "addr:housenumber": "12", "addr:street": "Bedford Street", "addr:postcode": "10014"}},
+    {"type": "way", "id": 2001, "center": {"lat": 40.7340, "lon": -74.0072},
+     "tags": {"amenity": "restaurant", "name": "Hudson Oyster Room", "addr:housenumber": "510", "addr:street": "Hudson Street",
+              "contact:website": "https://hudsonoyster.example"}},
+    {"type": "node", "id": 1003, "lat": 40.7335, "lon": -74.0020,
+     "tags": {"amenity": "restaurant", "name": "Seventh Avenue Diner", "addr:housenumber": "75", "addr:street": "Seventh Avenue South", "addr:postcode": "10014"}},
+    {"type": "node", "id": 1007, "lat": 40.7337, "lon": -74.0040,
+     "tags": {"amenity": "biergarten", "name": "Christopher Garden"}},
+    {"type": "node", "id": 1004, "lat": 40.7331, "lon": -74.0031,
+     "tags": {"amenity": "cafe", "name": "Coffee Place"}},
+    {"type": "node", "id": 1005, "lat": 40.7332, "lon": -74.0032,
+     "tags": {"amenity": "bar"}},
+    {"type": "node", "id": 1006, "lat": 40.7500, "lon": -74.0030,
+     "tags": {"amenity": "bar", "name": "Chelsea Bar Outside The Box"}},
+    {"type": "relation", "id": 3001,
+     "tags": {"amenity": "restaurant", "name": "No Coordinates"}}
+  ]
+}

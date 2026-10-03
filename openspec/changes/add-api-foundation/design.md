@@ -18,7 +18,7 @@ The repo is greenfield: it contains only OpenSpec scaffolding. See proposal.md f
 
 ## Decisions
 
-**Go 1.24, chi, pgx v5, sqlc.** chi is a thin router over `net/http`; sqlc generates typed queries from plain SQL, which suits PostGIS functions that ORMs handle poorly. *Alternatives:* GORM (weak on PostGIS, hides SQL); Echo/Gin (more framework than we need).
+**Go 1.26, chi, pgx v5, sqlc.** (Go 1.26 because current goose and staticcheck require it.) chi is a thin router over `net/http`; sqlc generates typed queries from plain SQL, which suits PostGIS functions that ORMs handle poorly. *Alternatives:* GORM (weak on PostGIS, hides SQL); Echo/Gin (more framework than we need).
 
 **Migrations: goose, SQL files embedded in the binary.** The same `pleb-api migrate up` runs in compose and later in CI or k8s jobs. *Alternative:* golang-migrate, which works just as well; goose's single-binary embedding is slightly simpler.
 
@@ -37,11 +37,11 @@ The repo is greenfield: it contains only OpenSpec scaffolding. See proposal.md f
 
 **Search query shape:** `ST_DWithin(location, point, radius)` on the GiST index, `EXISTS` against the visibility view (plus the active and day predicates), ordered by `(distance, id)`. The cursor is a base64 `(distance, id)` keyset, which keeps pages stable without OFFSET. Happy hours for the page's venues are fetched in a second query with `venue_id = ANY($1)`.
 
-**Importer reads files, with optional fetch.** `import venues --osm <file.json> --sla <file.csv> --bbox s,w,n,e [--dry-run]`. A `--fetch` flag downloads from Overpass and data.ny.gov where the network allows. Tests use checked-in fixtures (a few dozen real West Village OSM features and matching SLA rows). Address normalization handles street-suffix abbreviations, ordinals and unit stripping; names are matched with trigram similarity ≥ 0.4 via `pg_trgm`. Timezone is fixed to `America/New_York` for NYC imports; deriving it from coordinates waits until we expand beyond one area.
+**Importer reads files, with optional fetch.** `import venues --osm <file.json> --sla <file.csv> --bbox s,w,n,e [--dry-run]`. A `--fetch` flag downloads from Overpass and data.ny.gov where the network allows. Tests use small checked-in fixtures in the Overpass and SLA CSV formats. These are hand-written with fictional names, because Overpass and data.ny.gov weren't reachable when the fixtures were made. SLA columns are found by header name with aliases, since the export's exact headers couldn't be verified. Address normalization handles street-suffix abbreviations, ordinals and unit stripping; names are matched with trigram similarity ≥ 0.4, computed in Go with pg_trgm's algorithm (a test checks it against `pg_trgm`'s `similarity()`) so dry runs and matching need no database round-trips and the schema needs no `pg_trgm` extension. Timezone is fixed to `America/New_York` for NYC imports; deriving it from coordinates waits until we expand beyond one area.
 
 **Contract test:** `openapi.yaml` is hand-written. Integration tests load it with `kin-openapi` and validate every response they receive, which makes the "contract matches behavior" requirement a test.
 
-**Integration tests run against real PostGIS** via `testcontainers-go`, not mocks, since the riskiest logic (distance, timezone, midnight windows) is in SQL.
+**Integration tests run against real PostGIS** via `testcontainers-go` (or `PLEB_TEST_DATABASE_URL`), with a fresh database per test, not mocks, since the riskiest logic (distance, timezone, midnight windows) is in SQL.
 
 **Local dev:** `docker-compose.yml` here with `db` (`postgis/postgis:16-3.4`, healthcheck), `migrate` (runs once), `seed` (loads `dev/seed.sql` into a fresh DB), `api` (port 8080), and `web` and `agent` building from `../pleb-web` and `../pleb-agent` under compose profiles so the API works without them. Seed data marks itself `source_kind = 'field_photo'`, `verified = true`, with obviously fictional venue names, so it can't be mistaken for real data.
 
