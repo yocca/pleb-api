@@ -1,0 +1,207 @@
+openapi: 3.0.3
+info:
+  title: Pleb API
+  version: 0.1.0
+  description: |
+    Read-only API for finding bars and restaurants with happy hours.
+    Venue data from OpenStreetMap is © OpenStreetMap contributors (ODbL); see each venue's `attribution`.
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      operationId: health
+      responses:
+        "200":
+          description: The database is reachable.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                additionalProperties: false
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        "503":
+          $ref: "#/components/responses/Unavailable"
+
+  /v1/venues:
+    get:
+      summary: Venues with visible happy hours near a point
+      description: |
+        Returns venues within `radius_m` of the point that have at least one visible
+        happy hour (verified, or confidence >= 0.6), nearest first.
+      operationId: searchVenues
+      parameters:
+        - { name: lat, in: query, required: true, schema: { type: number, minimum: -90, maximum: 90 } }
+        - { name: lng, in: query, required: true, schema: { type: number, minimum: -180, maximum: 180 } }
+        - { name: radius_m, in: query, schema: { type: integer, minimum: 1, maximum: 25000, default: 1500 } }
+        - name: active_at
+          in: query
+          description: Only venues with a happy hour running at this instant, evaluated in each venue's timezone. Also the instant `active_now` is evaluated at.
+          schema: { type: string, format: date-time }
+        - name: day
+          in: query
+          description: Only venues with a happy hour on this weekday (0 = Sunday).
+          schema: { type: integer, minimum: 0, maximum: 6 }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 200, default: 50 } }
+        - name: cursor
+          in: query
+          description: Opaque `next_cursor` from the previous page.
+          schema: { type: string }
+      responses:
+        "200":
+          description: One page of venues.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [venues, next_cursor]
+                additionalProperties: false
+                properties:
+                  venues:
+                    type: array
+                    items: { $ref: "#/components/schemas/SearchVenue" }
+                  next_cursor:
+                    type: string
+                    nullable: true
+        "400":
+          $ref: "#/components/responses/InvalidParam"
+        "500":
+          $ref: "#/components/responses/Internal"
+
+  /v1/venues/{id}:
+    get:
+      summary: One venue
+      description: Returns the venue even when it has no visible happy hours.
+      operationId: getVenue
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: The venue.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/VenueDetail" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/Internal"
+
+components:
+  schemas:
+    Location:
+      type: object
+      required: [lat, lng]
+      additionalProperties: false
+      properties:
+        lat: { type: number }
+        lng: { type: number }
+
+    HappyHour:
+      type: object
+      required: [day_of_week, start, end, all_day, deals, notes, confidence, verified, source_kind, source_url, observed_at]
+      additionalProperties: false
+      properties:
+        day_of_week: { type: integer, minimum: 0, maximum: 6, description: "0 = Sunday" }
+        start:
+          type: string
+          nullable: true
+          pattern: "^[0-2][0-9]:[0-5][0-9]$"
+          description: Local HH:MM; null when all_day.
+        end:
+          type: string
+          nullable: true
+          pattern: "^[0-2][0-9]:[0-5][0-9]$"
+          description: Local HH:MM. Earlier than start means the window runs past midnight.
+        all_day: { type: boolean }
+        deals:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+            properties:
+              item: { type: string }
+              price: { type: number }
+              note: { type: string, nullable: true }
+        notes: { type: string, nullable: true }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        verified: { type: boolean }
+        source_kind: { type: string, enum: [website, field_photo, user_upload, owner] }
+        source_url: { type: string, nullable: true }
+        observed_at: { type: string, format: date-time }
+
+    VenueBase:
+      type: object
+      required: [id, name, address, location, timezone, active_now, happy_hours]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        address: { type: string, nullable: true }
+        location: { $ref: "#/components/schemas/Location" }
+        timezone: { type: string, example: America/New_York }
+        active_now:
+          type: boolean
+          description: Whether a visible happy hour is running at active_at (or now).
+        happy_hours:
+          type: array
+          items: { $ref: "#/components/schemas/HappyHour" }
+
+    SearchVenue:
+      allOf:
+        - $ref: "#/components/schemas/VenueBase"
+        - type: object
+          required: [distance_m]
+          properties:
+            distance_m: { type: number, minimum: 0 }
+
+    VenueDetail:
+      allOf:
+        - $ref: "#/components/schemas/VenueBase"
+        - type: object
+          required: [website, phone, updated_at, attribution]
+          properties:
+            website: { type: string, nullable: true }
+            phone: { type: string, nullable: true }
+            updated_at: { type: string, format: date-time }
+            attribution:
+              type: array
+              items: { type: string }
+
+    Error:
+      type: object
+      required: [error]
+      additionalProperties: false
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          additionalProperties: false
+          properties:
+            code:
+              type: string
+              enum: [invalid_param, not_found, internal, unavailable]
+            message: { type: string }
+
+  responses:
+    InvalidParam:
+      description: A parameter is missing or invalid (code invalid_param).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: No such venue (code not_found).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Internal:
+      description: Unexpected failure (code internal). No internal details are included.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unavailable:
+      description: The database is unreachable (code unavailable).
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
