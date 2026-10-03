@@ -4,7 +4,7 @@
 
 - [x] 1.1 Create the Go module `github.com/yocca/pleb-api` with `cmd/pleb-api` (subcommands `serve`, `migrate`, `import`) and `internal/` packages; verify `go build ./...` and `go vet ./...` pass
 - [x] 1.2 Add a multi-stage `Dockerfile` producing a static binary image; verify `docker build .` succeeds and `docker run <img> --help` lists the subcommands
-- [ ] 1.3 Add a GitHub Actions workflow running `go vet`, `staticcheck` and `go test ./...`; verify it passes on the PR
+- [x] 1.3 Add a GitHub Actions workflow running `go vet`, `staticcheck` and `go test ./...`; verify it passes on the PR
 
 ## 2. Schema and migrations
 
